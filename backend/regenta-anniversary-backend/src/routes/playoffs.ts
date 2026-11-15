@@ -16,7 +16,12 @@ router.post("/generate",requireAdmin,async(_req,res,next)=>{try{
  if(!ms.length||ms.some(m=>m.status!=="completed"))return res.status(409).json({error:"Complete all Super League fixtures first"});
  const ids=[...new Set(ms.flatMap(m=>[m.playerAId,m.playerBId]))];const top=calculateStandings(ids,ms).slice(0,8);
  if(top.length!==8)return res.status(400).json({error:"Eight eligible players are required"});
- const qfPairs=[[0,7],[3,4],[1,6],[2,5]];
+ const qfPairs: [number, number][] = [
+  [0, 7],
+  [3, 4],
+  [1, 6],
+  [2, 5],
+];
  const qfs=qfPairs.map(([a,b],i)=>({tournamentId:t.id,round:"quarterfinal",slot:i+1,playerAId:top[a]!.playerId,playerBId:top[b]!.playerId}));
  const rows=await db.insert(playoffFixtures).values([...qfs,{tournamentId:t.id,round:"semifinal",slot:1},{tournamentId:t.id,round:"semifinal",slot:2},{tournamentId:t.id,round:"final",slot:1}]).returning();
  await db.update(tournaments).set({currentStage:"playoffs",updatedAt:new Date()}).where(eq(tournaments.id,t.id));res.status(201).json({qualified:top,fixtures:rows});
