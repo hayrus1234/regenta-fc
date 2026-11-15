@@ -1,0 +1,14 @@
+import "dotenv/config";
+import bcrypt from "bcryptjs";
+import { db, pool } from "../src/db/client.js";
+import { admins } from "../src/db/schema/admins.js";
+import { eq } from "drizzle-orm";
+const email=process.env.ADMIN_EMAIL?.toLowerCase();
+const password=process.env.ADMIN_PASSWORD;
+if(!email||!password||!/^\d{4,}$/.test(password)) throw new Error("Set ADMIN_EMAIL and ADMIN_PASSWORD (at least 4 digits, numbers only) in .env");
+const [existing]=await db.select().from(admins).where(eq(admins.email,email));
+const passwordHash=await bcrypt.hash(password,12);
+if(existing) await db.update(admins).set({passwordHash,isActive:true}).where(eq(admins.id,existing.id));
+else await db.insert(admins).values({email,passwordHash});
+console.log(`Admin account ready: ${email}`);
+await pool.end();

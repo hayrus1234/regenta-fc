@@ -1,0 +1,44 @@
+/* Append this file's contents to frontend/src/styles.css */
+.bulk-player-textarea {
+  display: block;
+  width: 100%;
+  min-height: 170px;
+  margin-top: 12px;
+  padding: 14px;
+  resize: vertical;
+  color: inherit;
+  background: rgba(20, 10, 34, .82);
+  border: 1px solid rgba(190, 111, 255, .38);
+  border-radius: 12px;
+  font: inherit;
+  line-height: 1.65;
+}
+.bulk-player-actions, .players-roster-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 14px;
+}
+.players-roster-heading { margin: 0 0 16px; }
+.players-roster-heading p { margin: 5px 0 0; opacity: .72; }
+.roster-remove, .group-remove-player {
+  padding: 7px 11px;
+  border: 1px solid rgba(255, 100, 120, .45);
+  border-radius: 8px;
+  color: #ff9ca9;
+  background: rgba(130, 25, 48, .16);
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.admin-list > div { display: flex; align-items: center; gap: 12px; }
+.admin-list > div > span { flex: 1; }
+.group-member-list > div { display: flex; align-items: center; gap: 10px; }
+.group-member-list > div > b { flex: 1; }
+.danger-button:disabled, .roster-remove:disabled, .group-remove-player:disabled { opacity: .45; cursor: not-allowed; }
+@media (max-width: 640px) {
+  .players-roster-heading, .bulk-player-actions { align-items: stretch; flex-direction: column; }
+  .players-roster-heading .danger-button, .bulk-player-actions .primary-button { width: 100%; }
+  .group-remove-player { padding: 6px 8px; }
+}
