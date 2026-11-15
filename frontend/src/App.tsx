@@ -595,7 +595,7 @@ function AdminDashboard({players,fixtures,playoffFixtures,standings,groupDetails
         <div className="admin-panel"><h3>QUICK ACTIONS</h3><div className="admin-actions">{["Players","Fixtures","Announcements"].map(t=><button onClick={()=>setTab(t)}>{t}<ChevronRight/></button>)}</div></div>
       </>}
       {tab==="Players" && <PlayersAdmin players={players} refresh={refresh} newPlayer={newPlayer} setNewPlayer={setNewPlayer} addPlayer={addPlayer} />}
-      {tab==="Groups" && <GroupsAdmin players={players} refresh={refresh} setMessage={undefined} />}
+      {tab==="Groups" && <GroupsAdmin players={players} refresh={refresh} />}
       {tab==="Fixtures" && <FixturesAdmin players={players} fixtures={fixtures} groupDetails={groupDetails} newScore={newScore} setNewScore={setNewScore} saveScore={saveScore} refresh={refresh} />}
       {tab==="Announcements" && <AnnouncementsAdmin refresh={refresh} setMessage={undefined} />}
       {tab==="Reset Tournament" && <TournamentResetAdmin refresh={refresh} />}
