@@ -4,6 +4,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import api from "./routes/index.js";
 const app=express();
+app.set("trust proxy", 1);
 app.use(helmet());
 app.use(cors({
   origin: "https://regenta-fc.vercel.app",
