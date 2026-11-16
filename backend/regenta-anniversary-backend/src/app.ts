@@ -5,7 +5,12 @@ import rateLimit from "express-rate-limit";
 import api from "./routes/index.js";
 const app=express();
 app.use(helmet());
-app.use(cors({origin:process.env.CORS_ORIGIN?.split(",")??true}));
+app.use(cors({
+  origin: "https://regenta-fc.vercel.app",
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
 app.use(express.json({limit:"1mb"}));
 app.use("/api/auth",rateLimit({windowMs:15*60*1000,limit:20,standardHeaders:true,legacyHeaders:false}));
 app.get("/health",(_req,res)=>res.json({status:"ok",service:"regenta-anniversary-backend"}));
