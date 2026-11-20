@@ -33,6 +33,41 @@ function unwrap<T>(value: any, key: string): T[] {
   return [];
 }
 
+// Public tournament data is cached per browser so repeat visits can render immediately.
+// The API is still refreshed in the background on every app load.
+const PUBLIC_DATA_CACHE_KEY = "regenta_fc_public_data_v1";
+type PublicDataSnapshot = {
+  players: any[];
+  fixtures: any[];
+  standings: any[];
+  superStandings: any[];
+  groupDetails: any[];
+  playoffFixtures: any[];
+  awards: any;
+  announcements: any[];
+  cachedAt: number;
+};
+
+function readPublicDataCache(): PublicDataSnapshot | null {
+  try {
+    const raw = localStorage.getItem(PUBLIC_DATA_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed?.version !== 1 || !parsed?.data) return null;
+    return parsed.data as PublicDataSnapshot;
+  } catch {
+    return null;
+  }
+}
+
+function writePublicDataCache(data: PublicDataSnapshot) {
+  try {
+    localStorage.setItem(PUBLIC_DATA_CACHE_KEY, JSON.stringify({ version: 1, data }));
+  } catch {
+    // Storage can be unavailable or full; the live API remains the source of truth.
+  }
+}
+
 export default function App() {
   const [page, setPage] = useState<Page>("Home");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -68,33 +103,62 @@ export default function App() {
   }, []);
 
   async function loadPublicData() {
+    // Paint the last successful public snapshot immediately, then refresh it from the API.
+    const cached = readPublicDataCache();
+    if (cached) {
+      setPlayers(cached.players || []);
+      setFixtures(cached.fixtures || []);
+      setStandings(cached.standings || []);
+      setSuperStandings(cached.superStandings || []);
+      setGroupDetails(cached.groupDetails || []);
+      setPlayoffFixtures(cached.playoffFixtures || []);
+      setAwards(cached.awards || { goldenBoot: [], goldenGlove: [] });
+      setAnnouncements(cached.announcements?.length ? cached.announcements : announcements);
+    }
+
     const [p, f, s, a, sl, gd, playoffFixturesResult, awardsResult] = await Promise.allSettled([
       api("/api/players"), api("/api/fixtures"),
       api("/api/standings?stage=qualifying"), api("/api/announcements"), api("/api/standings?stage=super_league"), api("/api/tournament/groups/details"), api("/api/playoffs"), api("/api/statistics/awards")
     ]);
+
+    const next: PublicDataSnapshot = cached || {
+      players: [], fixtures: [], standings: [], superStandings: [], groupDetails: [],
+      playoffFixtures: [], awards: { goldenBoot: [], goldenGlove: [] }, announcements: [], cachedAt: 0
+    };
+
     if (p.status === "fulfilled") {
       const rows = unwrap<any>(p.value, "players").map((x:any)=>({...x, name:x.displayName || x.name || x.playerName}));
-      if (rows.length) setPlayers(rows);
+      if (rows.length || !next.players.length) next.players = rows;
     }
-    if (f.status === "fulfilled") setFixtures(unwrap<any>(f.value, "fixtures"));
-    if (s.status === "fulfilled") setStandings(Array.isArray(s.value) ? s.value : unwrap<any>(s.value, "standings"));
-    if (sl.status === "fulfilled") setSuperStandings(Array.isArray(sl.value) ? sl.value : unwrap<any>(sl.value, "standings"));
-    if (gd.status === "fulfilled") {
-      const groups = unwrap<any>(gd.value, "groups");
-      setGroupDetails(groups);
-      const playerGroup = new Map<number,string>();
-      groups.forEach((g:any)=> (g.players||[]).forEach((p:any)=>playerGroup.set(Number(p.id), `Group ${g.code}`)));
-      setPlayers(old=>old.map((p:any)=>({...p, groupName:playerGroup.get(Number(p.id)) || p.groupName || "Group not assigned"})));
-    }
-    if (playoffFixturesResult.status === "fulfilled") setPlayoffFixtures(unwrap<any>(playoffFixturesResult.value,"fixtures"));
-    if (awardsResult.status === "fulfilled") setAwards(awardsResult.value || {goldenBoot:[],goldenGlove:[]});
+    if (f.status === "fulfilled") next.fixtures = unwrap<any>(f.value, "fixtures");
+    if (s.status === "fulfilled") next.standings = Array.isArray(s.value) ? s.value : unwrap<any>(s.value, "standings");
+    if (sl.status === "fulfilled") next.superStandings = Array.isArray(sl.value) ? sl.value : unwrap<any>(sl.value, "standings");
+    if (gd.status === "fulfilled") next.groupDetails = unwrap<any>(gd.value, "groups");
+    if (playoffFixturesResult.status === "fulfilled") next.playoffFixtures = unwrap<any>(playoffFixturesResult.value, "fixtures");
+    if (awardsResult.status === "fulfilled") next.awards = awardsResult.value || { goldenBoot: [], goldenGlove: [] };
     if (a.status === "fulfilled") {
       const rows = unwrap<any>(a.value, "announcements");
-      if (rows.length) setAnnouncements(rows);
+      if (rows.length || !next.announcements.length) next.announcements = rows;
     }
+
+    const playerGroup = new Map<number,string>();
+    next.groupDetails.forEach((g:any)=> (g.players||[]).forEach((groupPlayer:any)=>playerGroup.set(Number(groupPlayer.id), `Group ${g.code}`)));
+    next.players = next.players.map((player:any)=>({...player, groupName:playerGroup.get(Number(player.id)) || player.groupName || "Group not assigned"}));
+    next.cachedAt = Date.now();
+    writePublicDataCache(next);
+
+    setPlayers(next.players);
+    setFixtures(next.fixtures);
+    setStandings(next.standings);
+    setSuperStandings(next.superStandings);
+    setGroupDetails(next.groupDetails);
+    setPlayoffFixtures(next.playoffFixtures);
+    setAwards(next.awards);
+    if (next.announcements.length) setAnnouncements(next.announcements);
   }
 
-  useEffect(() => { if (!adminRoute) loadPublicData(); }, [adminRoute, stage]);
+  // Stage changes only switch the displayed standings; they do not require refetching every endpoint.
+  useEffect(() => { if (!adminRoute) loadPublicData(); }, [adminRoute]);
 
   function go(next: Page) {
     setPage(next);
